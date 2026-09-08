@@ -15,47 +15,8 @@ if ( is_admin() ) {
 			// Setting area.
 			add_action( 'admin_init', array( $this, 'setup' ) );
 
-			// Changelog tabs.
-			add_action( 'tophive/dashboard/changelog/before', array( $this, 'changelog_tabs' ) );
 		}
 
-		function changelog_tabs() {
-			require_once MetafansCoreCustomizer()->get_path() . '/inc/markdown/class-parse-readme.php';
-
-			$readme_file = MetafansCoreCustomizer()->get_path() . '/readme.txt';
-			$rm          = new WordPress_Readme_Parser();
-			$content     = $rm->parse_readme( $readme_file );
-			?>
-			<div id="tophive-changelog-settings-tabs-wrapper" class="nav-tab-wrapper">
-				<a class="nav-tab nav-tab-active" data-type="theme" href="#"><?php _e( 'Theme', 'tophive-pro' ); ?></a>
-				<a class="nav-tab" href="#" data-type="tophive-pro"><?php _e( 'Metafans Pro', 'tophive-pro' ); ?></a>
-			</div>
-			<br />
-			<div class="cd-box tophive-pro-changelog" style="display: none;">
-				<div class="cd-box-top"><?php _e( 'Changelog', 'tophive-pro' ); ?></div>
-				<div class="cd-box-content">
-					<pre style="width: 100%; max-height: 60vh; overflow: auto"><?php echo esc_textarea( strip_tags( $content['sections']['changelog'] ) ); ?></pre>
-				</div>
-			</div>
-			<script type="text/javascript">
-				jQuery(document).ready(function ($) {
-					$('#tophive-changelog-settings-tabs-wrapper').on('click', 'a', function (e) {
-						e.preventDefault();
-						var tab = $(this).data('type') || '';
-						$('#tophive-changelog-settings-tabs-wrapper a').removeClass('nav-tab-active');
-						$(this).addClass('nav-tab-active');
-						if (tab === 'tophive-pro') {
-							$('.cd-box.tophive-pro-changelog').show();
-							$('.theme-changelog').hide();
-						} else {
-							$('.cd-box.tophive-pro-changelog').hide();
-							$('.theme-changelog').show();
-						}
-					});
-				});
-			</script>
-			<?php
-		}
 
 		function setup() {
 			if ( isset( $_REQUEST['module'] ) ) {

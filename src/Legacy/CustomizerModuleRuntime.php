@@ -1,7 +1,6 @@
 <?php
 
 class MetafansCoreCustomizer {
-	static $item_id = 855;
 	static $_instance;
 	static $path;
 	static $url;
@@ -15,7 +14,7 @@ class MetafansCoreCustomizer {
 	 */
 	public $modules_path = 'modules';
 	public $modules = array();
-	public $installed_modules = array();
+	public $installed_modules = array('Metafans_Customizer_Control_Multiple_Sections');
 	public $css = array();
 	public $js = array();
 	public $local_scripts_args = array();
@@ -57,17 +56,10 @@ class MetafansCoreCustomizer {
 	 * Init admin
 	 */
 	function init_admin() {
-		$files = array(
-			'/inc/admin/class-dashboard',
-			'/inc/metabox',
-		);
+		require_once __DIR__ . '/metabox.php';
+		require_once __DIR__ . '/class-dashboard.php';
 
-		$this->load_files( $files );
-		if ( ! is_admin() ) {
-			add_action( 'admin_enqueue_scripts', array( $this, 'admin_scripts' ) );
-		}
-
-		add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), array( $this, 'add_action_links' ) );
+		add_filter( 'plugin_action_links_' . plugin_basename( self::$file ), array( $this, 'add_action_links' ) );
 
 	}
 
@@ -79,20 +71,13 @@ class MetafansCoreCustomizer {
 		return array_merge( $links, $plugin_links );
 	}
 
-	function admin_scripts() {
-		wp_enqueue_media();
-		wp_register_script( 'tophive-pro-admin', self::$url . '/assets/js/admin/tophive-admin.js', array( 'jquery' ), '1.0.0', true );
-		wp_register_style( 'tophive-pro-admin', self::$url . '/assets/css/admin/admin.css', false, '1.0.0' );
-		wp_enqueue_style( 'tophive-pro-admin' );
-		wp_enqueue_script( 'tophive-pro-admin' );
-	}
 
 	static function get_instance() {
 		if ( is_null( self::$_instance ) ) {
 			self::$_instance = new self();
-			self::$file      = __FILE__;
-			self::$path      = untrailingslashit( dirname( __FILE__ ) );
-			self::$url       = untrailingslashit( plugins_url( '', __FILE__ ) );
+			self::$file      = dirname( __DIR__, 2 ) . '/metafans-core.php';
+			self::$path      = untrailingslashit( dirname( __DIR__, 2 ) . '/t' );
+			self::$url       = untrailingslashit( plugins_url( 't', self::$file ) );
 		}
 
 		return self::$_instance;
@@ -132,26 +117,21 @@ class MetafansCoreCustomizer {
 
 		add_action( 'after_setup_theme', array( $this, 'theme_setup' ) );
 
-		$files = array(
-			'/inc/class-module-base',
-			'/inc/class-module-assets',
+		require_once __DIR__ . '/class-module-base.php';
+		require_once __DIR__ . '/class-module-assets.php';
 
+		$files = array(
 			'/modules/header-transparent/header-transparent',
 			'/modules/header-sticky/header-sticky',
-			// '/modules/header-footer-items/header-footer-items',
 			'/modules/scrolltop/scrolltop',
 			'/modules/blog/blog',
 			'/modules/advanced-styling/advanced-styling',
-			'/modules/portfolio/portfolio',
 			'/modules/multiple-headers/multiple-headers',
-			'/modules/mega-menu/mega-menu',
 			'/modules/multilingual/multilingual',
 			'/modules/cookie-notice/cookie-notice',
 			'/modules/custom-fonts/custom-fonts',
 			'/modules/typekit/typekit',
 
-			'/modules/hooks/hooks',
-			// '/modules/multilingual/multilingual',
 			'/modules/woocommerce-booster/woocommerce-booster',
 
 			'/modules/infinity/infinity',
@@ -307,13 +287,13 @@ class MetafansCoreCustomizer {
 	 */
 	public function load_modules() {
 		foreach ( $this->modules as $class_name => $f ) {
-			if ( MetafansCoreCustomizer()->is_enabled_module( $class_name ) ) {
+			// if ( MetafansCoreCustomizer()->is_enabled_module( $class_name ) ) {
 				if ( method_exists( $class_name, 'get_instance' ) ) {
 					$this->installed_modules[ $class_name ] = $class_name::get_instance();
 				} else {
 					$this->installed_modules[ $class_name ] = new $class_name();
 				}
-			}
+			// }
 		}
 	}
 

@@ -3,7 +3,7 @@
 class MetafansCoreCustomizer_Module_Multiple_Headers extends MetafansCoreCustomizer_Module_Base {
 
 	function __construct() {
-		require_once MetafansCoreCustomizer()->get_path() . '/inc/class-condition.php';
+		require_once WP_MF_CORE_PATH . 'src/Legacy/class-condition.php';
 		require_once dirname( __FILE__ ) . '/inc/config.php';
 		require_once dirname( __FILE__ ) . '/inc/class-filter-options.php';
 

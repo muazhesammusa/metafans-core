@@ -18,26 +18,9 @@ namespace METAFANSCORE;
 defined( 'ABSPATH' ) || exit;
 
 use METAFANSCORE\widgets\elementor\MetafansElementorBase;
-use METAFANSCORE\widgets\elementor\MetafansElementorTeam;
-use METAFANSCORE\widgets\elementor\MetafansElementorTeamCarousel;
-use METAFANSCORE\widgets\elementor\MetafansElementorBlog;
-use METAFANSCORE\widgets\elementor\MetafansElementorBlogCarousel;
-use METAFANSCORE\widgets\elementor\MetafansElementorCoursesGrid;
-use METAFANSCORE\widgets\elementor\MetafansElementorImageCarousel;
-use METAFANSCORE\widgets\elementor\MetafansElementorCoursesCarousel;
-use METAFANSCORE\widgets\elementor\MetafansElementorTestimonialCarousel;
-use METAFANSCORE\widgets\elementor\MetafansElementorInstructorFormPopup;
-use METAFANSCORE\widgets\elementor\MetafansElementorAdvanceSearch;
-use METAFANSCORE\widgets\elementor\MetafansElementorAdvanceFilter;
-use METAFANSCORE\widgets\elementor\MetafansElementorAdvancedTabs;
-use METAFANSCORE\widgets\elementor\MetafansElementorCourseCategory;
-use METAFANSCORE\widgets\elementor\MetafansElementorForumTabs;
-use METAFANSCORE\widgets\elementor\MetafansElementorLoginSignup;
-use METAFANSCORE\widgets\elementor\MetafansElementorBuddyPressGroups;
-use METAFANSCORE\widgets\elementor\MetafansElementorBBPressNewPost;
-use METAFANSCORE\widgets\elementor\MetafansElementorMemberCount;
 use METAFANSCORE\widgets\metafanswidgets\WidgetHelper;
 use METAFANSCORE\Support\DomainFoundation;
+use METAFANSCORE\Elementor\WidgetRegistry;
 
 class MetafansCore
 {
@@ -93,8 +76,7 @@ class MetafansCore
 		
 		add_action('wp_ajax_mailchimpsubscribe', array(WidgetHelper::getInstance(), 'TH_ajax_subscribe'));
 		add_action('wp_ajax_nopriv_mailchimpsubscribe', array(WidgetHelper::getInstance(), 'TH_ajax_subscribe'));
-		add_action( 'elementor/widgets/register', array( self::getInstance(), 'MetafansElementorWidgetInit' ) );
-		add_action( 'elementor/elements/categories_registered', array( self::getInstance(), 'MetafansElementorCat' ) );
+		WidgetRegistry::boot();
 
 		remove_action( 'wp_head', 'feed_links_extra', 3 );
 		remove_action( 'wp_head', 'learn_press_print_custom_styles' );
@@ -135,81 +117,28 @@ class MetafansCore
 		return true;
 	}
 	
+
 	/**
-	 * Register Elementor widgets through the current widgets manager API.
+	 * Backward-compatible delegate for integrations that called the old public method.
+	 * New registration is owned by Elementor\WidgetRegistry.
 	 *
-	 * Integration-specific widgets are registered only when their owning plugin
-	 * is active so an optional plugin being disabled cannot fatal Elementor.
-	 *
-	 * @param \Elementor\Widgets_Manager $widgets_manager Elementor widgets manager.
+	 * @param object $widgets_manager Elementor widgets manager.
 	 * @return void
 	 */
 	public static function MetafansElementorWidgetInit( $widgets_manager ) {
-		if ( ! is_object( $widgets_manager ) || ! method_exists( $widgets_manager, 'register' ) ) {
-			return;
-		}
-
-		$generic_widgets = array(
-			MetafansElementorTeam::class,
-			MetafansElementorTeamCarousel::class,
-			MetafansElementorBlog::class,
-			MetafansElementorBlogCarousel::class,
-			MetafansElementorImageCarousel::class,
-			MetafansElementorTestimonialCarousel::class,
-			MetafansElementorAdvancedTabs::class,
-			MetafansElementorLoginSignup::class,
-			MetafansElementorMemberCount::class,
-		);
-
-		foreach ( $generic_widgets as $widget_class ) {
-			self::register_elementor_widget( $widgets_manager, $widget_class );
-		}
-
-		if ( class_exists( 'LearnPress' ) || function_exists( 'learn_press_get_course' ) ) {
-			foreach ( array(
-				MetafansElementorCoursesGrid::class,
-				MetafansElementorCoursesCarousel::class,
-				MetafansElementorCourseCategory::class,
-				MetafansElementorInstructorFormPopup::class,
-				MetafansElementorAdvanceSearch::class,
-				MetafansElementorAdvanceFilter::class,
-			) as $widget_class ) {
-				self::register_elementor_widget( $widgets_manager, $widget_class );
-			}
-		}
-
-		if ( class_exists( 'BuddyPress' ) || function_exists( 'bp_is_active' ) ) {
-			self::register_elementor_widget( $widgets_manager, MetafansElementorBuddyPressGroups::class );
-		}
-
-		if ( class_exists( 'bbPress' ) || function_exists( 'bbp_get_forum' ) ) {
-			self::register_elementor_widget( $widgets_manager, MetafansElementorForumTabs::class );
-			self::register_elementor_widget( $widgets_manager, MetafansElementorBBPressNewPost::class );
-		}
+		WidgetRegistry::register_widgets( $widgets_manager );
 	}
 
 	/**
-	 * Register one widget without assuming the optional integration class exists.
+	 * Backward-compatible delegate for the legacy public category callback.
 	 *
-	 * @param object $widgets_manager Elementor widgets manager.
-	 * @param string $widget_class    Fully qualified widget class.
+	 * @param object $elements_manager Elementor elements manager.
 	 * @return void
 	 */
-	private static function register_elementor_widget( $widgets_manager, $widget_class ) {
-		if ( class_exists( $widget_class ) ) {
-			$widgets_manager->register( new $widget_class() );
-		}
+	public static function MetafansElementorCat( $elements_manager ) {
+		WidgetRegistry::register_category( $elements_manager );
 	}
 
-	public static function MetafansElementorCat( $elements_manager ) {
-		$elements_manager->add_category(
-			WP_MF_CORE_SLUG,
-			[
-				'title' => esc_html__( 'Metafans Widgets', WP_MF_CORE_SLUG ),
-				'icon' => 'eicon-t-letter',
-			]
-		);
-	}
 	public static function inlineStyles(){
 	}
 
@@ -291,7 +220,7 @@ spl_autoload_register(__NAMESPACE__ . '\\autoload');
 add_action( 'plugins_loaded', array( MetafansCore::getInstance(), 'init' ) );
 
 require_once __DIR__ . '/MailChimp.php';
-require_once __DIR__ . '/t/class-tophive-modules.php';
+require_once __DIR__ . '/src/Legacy/CustomizerModuleRuntime.php';
 require_once __DIR__ . '/updater/theme-updater.php';
 
 function autoload( $class = '' ) {

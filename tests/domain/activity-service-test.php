@@ -38,6 +38,7 @@ final class ActivityGatewayStub implements ActivityGateway {
 	public function delete( int $id ): bool { $this->calls[]='delete'; if(!isset($this->activities[$id])) return false; unset($this->activities[$id]); return true; }
 	public function get_meta( int $id, string $key ) { return $this->meta[$id][$key] ?? ''; }
 	public function update_meta( int $id, string $key, $value ): bool { $this->meta[$id][$key]=$value; return true; }
+	public function with_lock( int $id, string $scope, callable $callback ) { return $callback(); }
 }
 function phase4_assert( $condition, string $message ): void { if(!$condition){fwrite(STDERR,"FAIL $message\n");exit(1);} fwrite(STDOUT,"PASS $message\n"); }
 

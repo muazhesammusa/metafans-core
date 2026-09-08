@@ -23,4 +23,5 @@ interface ActivityGateway {
 	public function delete( int $activity_id ): bool;
 	public function get_meta( int $activity_id, string $key );
 	public function update_meta( int $activity_id, string $key, $value ): bool;
+	public function with_lock( int $activity_id, string $scope, callable $callback );
 }

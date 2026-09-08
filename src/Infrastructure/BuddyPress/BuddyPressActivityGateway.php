@@ -106,4 +106,17 @@ final class BuddyPressActivityGateway implements ActivityGateway {
 		$result = bp_activity_update_meta( $activity_id, $key, $value );
 		return false !== $result;
 	}
+	public function with_lock( int $activity_id, string $scope, callable $callback ) {
+		$key = '_metafans_lock_' . md5( $scope . ':' . $activity_id );
+		$deadline = microtime( true ) + 2.0;
+		do {
+			if ( add_option( $key, time(), '', false ) ) {
+				try { return $callback(); } finally { delete_option( $key ); }
+			}
+			$created = (int) get_option( $key, 0 );
+			if ( $created && $created < time() - 10 ) { delete_option( $key ); continue; }
+			usleep( 20000 );
+		} while ( microtime( true ) < $deadline );
+		return null;
+	}
 }

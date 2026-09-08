@@ -83,6 +83,11 @@ final class ActivityController {
 		}
 
 		$persisted_id = $result->activity_id();
+		foreach ( $media as $media_record ) {
+			if ( ! empty( $media_record['attachment_id'] ) ) {
+				do_action( 'metafans_core_activity_media_attached', absint( $media_record['attachment_id'] ), (int) $actor_id, $persisted_id );
+			}
+		}
 		$last_recorded = current_time( 'timestamp' );
 		$args = array(
 			'since'       => $last_recorded,

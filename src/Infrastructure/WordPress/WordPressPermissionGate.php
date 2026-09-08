@@ -12,7 +12,7 @@ use METAFANSCORE\Application\Contracts\PermissionGate;
 defined( 'ABSPATH' ) || exit;
 
 final class WordPressPermissionGate implements PermissionGate {
-	public function authorize_ajax_mutation( string $action, ?string $capability = 'read' ) {
+	public function authorize_ajax_mutation( string $action, ?string $capability = 'read', array $allowed_nonce_actions = array() ) {
 		if ( ! is_user_logged_in() ) {
 			return new \WP_Error( 'authentication_required', __( 'Authentication required.', 'metafans-core' ), array( 'status' => 401 ) );
 		}
@@ -25,7 +25,16 @@ final class WordPressPermissionGate implements PermissionGate {
 		}
 
 		$nonce_action = (string) apply_filters( 'metafans_core_ajax_nonce_action', 'metafans_mutation_' . sanitize_key( $action ), $action );
-		if ( ! $nonce || ! wp_verify_nonce( $nonce, $nonce_action ) ) {
+		$nonce_valid  = $nonce && wp_verify_nonce( $nonce, $nonce_action );
+		if ( ! $nonce_valid ) {
+			foreach ( $allowed_nonce_actions as $allowed_nonce_action ) {
+				if ( $allowed_nonce_action && $nonce && wp_verify_nonce( $nonce, (string) $allowed_nonce_action ) ) {
+					$nonce_valid = true;
+					break;
+				}
+			}
+		}
+		if ( ! $nonce_valid ) {
 			return new \WP_Error( 'invalid_nonce', __( 'Security check failed.', 'metafans-core' ), array( 'status' => 403 ) );
 		}
 

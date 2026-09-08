@@ -15,5 +15,5 @@ interface PermissionGate {
 	 *
 	 * @return int|\WP_Error
 	 */
-	public function authorize_ajax_mutation( string $action, ?string $capability = 'read' );
+	public function authorize_ajax_mutation( string $action, ?string $capability = 'read', array $allowed_nonce_actions = array() );
 }

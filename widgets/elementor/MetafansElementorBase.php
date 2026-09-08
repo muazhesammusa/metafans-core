@@ -213,7 +213,19 @@ class MetafansElementorBase
 		}
 		return $lessons;
 	}
+	/**
+	 * Whether the LearnPress runtime required by course widgets is available.
+	 *
+	 * @return bool
+	 */
+	private static function is_learnpress_available() {
+		return function_exists( 'learn_press_get_course' ) && class_exists( '\LP_Global' );
+	}
+
 	public static function deliverCoursesAjaxRequest(){
+		if ( ! self::is_learnpress_available() ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'LearnPress is required for course requests.', WP_MF_CORE_SLUG ) ), 503 );
+		}
 		$settings = isset($_REQUEST['settings']) ? $_REQUEST['settings'] : array();
 		$offset = isset($_REQUEST['offset']) ? absint($_REQUEST['offset']) : 0;
 		$category = isset($_REQUEST['category']) ? sanitize_text_field($_REQUEST['category']) : 'all';
@@ -265,6 +277,9 @@ class MetafansElementorBase
 		die();
 	}
 	public static function prepareCourseSlider( $args, $settings, $offset = '', $style = '' ){
+		if ( ! self::is_learnpress_available() ) {
+			return '';
+		}
 		$html = '';
 		$posts = new \WP_Query($args);
 			if($posts->have_posts()){
@@ -310,6 +325,9 @@ class MetafansElementorBase
 		wp_send_json( $response );
 	}
 	public static function prepareCourses( $args, $settings, $offset = 0, $category = '' ){
+		if ( ! self::is_learnpress_available() ) {
+			return '<div class="ec-text-center">' . esc_html__( 'LearnPress is required to display courses.', WP_MF_CORE_SLUG ) . '</div>';
+		}
 		$courses = new \WP_Query($args);
 		$displayflex = $settings['select_layout'] === 'thumb-left' || $settings['select_layout'] === 'thumb-right' ? 'ec-d-md-flex' : ''; 
 		if($courses->have_posts()){
@@ -663,6 +681,9 @@ class MetafansElementorBase
 		die();
 	}
 	public function get_price_text( $id ){
+		if ( ! function_exists( 'learn_press_get_currency_symbol' ) ) {
+			return '';
+		}
 		$price = intval(get_post_meta( $id, '_lp_price', $single = true ));
     	$sale_price = intval(get_post_meta( $id, '_lp_sale_price', $single = true ));
     	$price_html = '';

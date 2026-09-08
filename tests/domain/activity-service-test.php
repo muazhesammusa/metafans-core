@@ -24,19 +24,23 @@ final class ActivityGatewayStub implements ActivityGateway {
 	public array $group_members = array();
 	public array $calls = array();
 	public int $next_id = 500;
+	public int $find_calls = 0;
+	public int $friend_calls = 0;
+	public int $meta_calls = 0;
+	public int $moderate_calls = 0;
 
 	public function is_available(): bool { return $this->available; }
-	public function find( int $id ): ?object { return $this->activities[$id] ?? null; }
+	public function find( int $id ): ?object { $this->find_calls++; return $this->activities[$id] ?? null; }
 	public function query( array $args ): array { return array_values( $this->activities ); }
 	public function search( string $terms, int $page, int $per_page ): array { return $this->query( array() ); }
 	public function native_can_read( object $activity, int $viewer_id ): bool { return ! in_array( (int) $activity->id, $this->native_denied, true ); }
-	public function are_friends( int $a, int $b ): bool { return in_array( "$a:$b", $this->friends, true ) || in_array( "$b:$a", $this->friends, true ); }
-	public function can_moderate( int $id ): bool { return in_array( $id, $this->moderators, true ); }
+	public function are_friends( int $a, int $b ): bool { $this->friend_calls++; return in_array( "$a:$b", $this->friends, true ) || in_array( "$b:$a", $this->friends, true ); }
+	public function can_moderate( int $id ): bool { $this->moderate_calls++; return in_array( $id, $this->moderators, true ); }
 	public function is_group_member( int $user_id, int $group_id ): bool { return in_array( "$user_id:$group_id", $this->group_members, true ); }
 	public function create_update( int $actor_id, string $content, string $component, int $item_id ): int { $id=$this->next_id++; $this->activities[$id]=(object)array('id'=>$id,'user_id'=>$actor_id,'content'=>$content); $this->calls[]='create'; return $id; }
 	public function update_existing( int $id, int $actor_id, string $content, string $component, int $item_id ): int { $this->calls[]='edit'; if(!isset($this->activities[$id])) return 0; $this->activities[$id]->content=$content; return $id; }
 	public function delete( int $id ): bool { $this->calls[]='delete'; if(!isset($this->activities[$id])) return false; unset($this->activities[$id]); return true; }
-	public function get_meta( int $id, string $key ) { return $this->meta[$id][$key] ?? ''; }
+	public function get_meta( int $id, string $key ) { $this->meta_calls++; return $this->meta[$id][$key] ?? ''; }
 	public function update_meta( int $id, string $key, $value ): bool { $this->meta[$id][$key]=$value; return true; }
 	public function with_lock( int $id, string $scope, callable $callback ) { return $callback(); }
 }
@@ -61,6 +65,7 @@ $gateway->moderators=array();
 $gateway->friends=array('20:12');
 phase4_assert($privacy->can_view(102,20),'friend sees friends-only activity');
 $gateway->friends=array();
+$privacy->invalidate();
 phase4_assert(!$privacy->can_view(102,20),'non-friend cannot see friends-only activity');
 $gateway->native_denied=array(101);
 phase4_assert(!$privacy->can_view(101,20),'BuddyPress native privacy denial wins');
@@ -83,5 +88,22 @@ $result=$mutations->delete(20,100);
 phase4_assert(!$result->is_success(),'non-owner delete rejected');
 $result=$mutations->delete(10,100);
 phase4_assert($result->is_success() && !isset($gateway->activities[100]),'owner deletes through activity service');
+
+
+$perf_gateway = new ActivityGatewayStub();
+$perf_gateway->activities[201]=(object)array('id'=>201,'user_id'=>44,'content'=>'friends one');
+$perf_gateway->activities[202]=(object)array('id'=>202,'user_id'=>44,'content'=>'friends two');
+$perf_gateway->meta[201]['activity_accessibility']='friends';
+$perf_gateway->meta[202]['activity_accessibility']='friends';
+$perf_gateway->friends=array('20:44');
+$perf_privacy=new ActivityPrivacyService($perf_gateway);
+$perf_query=new ActivityQueryService($perf_gateway,$perf_privacy);
+$perf_gateway->find_calls=0;
+$perf_gateway->friend_calls=0;
+$perf_gateway->moderate_calls=0;
+$rows=$perf_query->visible_page(array('per_page'=>500),20);
+phase4_assert(count($rows)===2 && $perf_gateway->find_calls===0,'bounded feed privacy filtering reuses loaded activity objects');
+phase4_assert($perf_gateway->friend_calls===1,'request-local friendship policy cache removes repeated relationship lookups');
+phase4_assert($perf_gateway->moderate_calls===1,'request-local moderation policy cache removes repeated capability lookups');
 
 echo "PASS MetaFans Phase 4 activity/privacy service contract\n";

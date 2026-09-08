@@ -59,6 +59,7 @@ final class ActivityMutationService {
 			$this->gateway->update_meta( $persisted_id, 'last_edited', array( 'is_edited' => true, 'timestamp' => time() ) );
 		}
 
+		$this->privacy->invalidate( $persisted_id );
 		return ActivityResult::success( $persisted_id, $activity_id > 0 ? 'activity_edited' : 'activity_created' );
 	}
 
@@ -66,9 +67,11 @@ final class ActivityMutationService {
 		if ( ! $this->privacy->can_delete( $activity_id, $actor_id ) ) {
 			return ActivityResult::failure( 'activity_delete_forbidden', 'You are not allowed to delete this activity.', 403, $activity_id );
 		}
-		return $this->gateway->delete( $activity_id )
-			? ActivityResult::success( $activity_id, 'activity_deleted' )
-			: ActivityResult::failure( 'activity_delete_failed', 'The activity could not be deleted!', 500, $activity_id );
+		if ( ! $this->gateway->delete( $activity_id ) ) {
+			return ActivityResult::failure( 'activity_delete_failed', 'The activity could not be deleted!', 500, $activity_id );
+		}
+		$this->privacy->invalidate( $activity_id );
+		return ActivityResult::success( $activity_id, 'activity_deleted' );
 	}
 
 	public function update_visibility( int $actor_id, int $activity_id, string $visibility ): ActivityResult {
@@ -79,6 +82,7 @@ final class ActivityMutationService {
 		if ( ! $this->gateway->update_meta( $activity_id, 'activity_accessibility', $visibility ) ) {
 			return ActivityResult::failure( 'activity_visibility_failed', 'Could not update activity visibility.', 500, $activity_id );
 		}
+		$this->privacy->invalidate( $activity_id );
 		return ActivityResult::success( $activity_id, 'activity_visibility_updated' );
 	}
 }

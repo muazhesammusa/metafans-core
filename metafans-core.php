@@ -153,9 +153,8 @@ class MetafansCore
 		wp_enqueue_style( 'th-widget-css', WP_MF_CORE_URL . 'widgets/metafanswidgets/assets/css/frontend.css' );
 		add_action( 'wp_ajax_course_grid_pull_cats', array( MetafansElementorBase::getInstance(), 'AjaxCourseRequest' ) );
 		add_action( 'wp_ajax_nopriv_course_grid_pull_cats', array( MetafansElementorBase::getInstance(), 'AjaxCourseRequest' ) );
-		wp_enqueue_script( 'rich-text-quill', WP_MF_CORE_URL . 'widgets/elementor/assets/quill.min.js', array(), '4.0.6' );
-
-		wp_enqueue_style( 'rich-text-quill-css', WP_MF_CORE_URL . 'widgets/elementor/assets/quill.snow.css' );
+		wp_register_script( 'rich-text-quill', WP_MF_CORE_URL . 'widgets/elementor/assets/quill.min.js', array(), '1.3.6', true );
+		wp_register_style( 'rich-text-quill-css', WP_MF_CORE_URL . 'widgets/elementor/assets/quill.snow.css', array(), '1.3.6' );
 		wp_enqueue_script( 'th-elementor-js', WP_MF_CORE_URL . 'widgets/elementor/assets/script.js', array( 'jquery' ) );
 		wp_localize_script(
 			'th-elementor-js',

@@ -69,7 +69,8 @@ class MetafansElementorForumTabs extends \Elementor\Widget_base
 		$topics_args = array(
 			'post_type' => 'topic',
 			'post_status' => 'publish',
-			'posts_per_page' => -1
+			'posts_per_page' => 20,
+			'no_found_rows'   => true,
 		);
 
 		$topics = new \WP_Query($topics_args);
@@ -78,6 +79,7 @@ class MetafansElementorForumTabs extends \Elementor\Widget_base
 			'post_type' => 'forum',
 			'post_status' => 'publish',
 			'posts_per_page' => -1,
+			'no_found_rows'   => true,
 			'post_parent' => 0
 		);
 		$forum = new \WP_Query($forum_args);
@@ -146,6 +148,7 @@ class MetafansElementorForumTabs extends \Elementor\Widget_base
 											</div>
 										<?php
 									}
+									wp_reset_postdata();
 								}
 							?>
 						</div>
@@ -168,6 +171,7 @@ class MetafansElementorForumTabs extends \Elementor\Widget_base
 														'post_status' 	 => 'publish',
 														'post_parent'    => get_the_ID(),
 														'posts_per_page' => -1,
+														'no_found_rows'   => true,
 													);
 													$forum_childs = new \WP_Query( $forum_childs_args );
 
@@ -197,10 +201,7 @@ class MetafansElementorForumTabs extends \Elementor\Widget_base
 																	<div class="meta-item">
 																		<?php 
 																			echo '<span>';
-																			global $wpdb;
-																			$post_ide = get_the_ID();
-																			$results = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}posts WHERE post_parent={$post_ide} and post_type='topic'");
-																			echo count($results);
+																			echo function_exists( 'bbp_get_forum_topic_count' ) ? absint( bbp_get_forum_topic_count( get_the_ID() ) ) : 0;
 																			echo '</span>';
 																			esc_html_e( ' Topics', WP_MF_CORE_SLUG ); ?>
 																	</div>
@@ -257,12 +258,7 @@ class MetafansElementorForumTabs extends \Elementor\Widget_base
 																	<div class="meta-item">
 																		<?php 
 																			echo '<span>';
-																			global $wpdb;
-																			$post_ide = get_the_ID();
-
-																			$results = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}posts WHERE post_parent={$post_ide} and post_type='topic'");
-																			
-																			echo count($results);
+																			echo function_exists( 'bbp_get_forum_topic_count' ) ? absint( bbp_get_forum_topic_count( get_the_ID() ) ) : 0;
 																			echo '</span>';
 																			esc_html_e( ' Topics', WP_MF_CORE_SLUG ); ?>
 																	</div>
@@ -298,6 +294,7 @@ class MetafansElementorForumTabs extends \Elementor\Widget_base
 												?>
 										<?php
 									}
+									wp_reset_postdata();
 								}
 							?>
 						</div>

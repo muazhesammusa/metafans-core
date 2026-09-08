@@ -247,8 +247,9 @@ jQuery(document).ready(function(jQuery) {
 			jQuery(target).fadeIn(200);
 		});
 	});
-	if( jQuery('#thbbpresspostdesc').length ){
-		var quillEditor = new Quill('#thbbpresspostdesc', {
+	var quillEditor = null;
+	if( jQuery('#thbbpresspostdesc').length && typeof window.Quill !== 'undefined' ){
+		quillEditor = new window.Quill('#thbbpresspostdesc', {
 		  modules: {
 		    toolbar: [
 		      [{ header: [1, 2, 3, 4, false] }],
@@ -266,7 +267,7 @@ jQuery(document).ready(function(jQuery) {
 		var that = jQuery(this);
 		that.find('.thbbpresspostsubmit').addClass('loading');
 		var data = that.serializeArray();
-		var text = quillEditor.root.innerHTML;
+		var text = quillEditor ? quillEditor.root.innerHTML : jQuery('#thbbpresspostdesc').html();
 		data[data.length] = { name: "thbbpresspostdesc", value: text };
 		console.log(data);
 		jQuery.ajax({

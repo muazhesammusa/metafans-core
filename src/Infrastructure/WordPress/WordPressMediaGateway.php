@@ -15,6 +15,37 @@ final class WordPressMediaGateway implements MediaGateway {
     }
     public function can_delete( int $actor_id, int $attachment_id ): bool { $p=get_post($attachment_id); return $p&&'attachment'===$p->post_type&&($actor_id===(int)$p->post_author||user_can($actor_id,'delete_post',$attachment_id)||user_can($actor_id,'bp_moderate')||user_can($actor_id,'manage_options')); }
     public function delete( int $attachment_id ): bool { return (bool) wp_delete_attachment($attachment_id,true); }
-    public function mark_attached( int $attachment_id, int $actor_id, int $activity_id ): void { $post=get_post($attachment_id); if(!$post||'attachment'!==$post->post_type||(int)$post->post_author!==$actor_id)return; update_post_meta($attachment_id,'_metafans_community_upload_state','attached'); update_post_meta($attachment_id,'_metafans_community_activity_id',$activity_id); delete_post_meta($attachment_id,'_metafans_community_upload_staged_at'); }
-    public function cleanup_orphans( int $older_than, int $limit = 50 ): int { $ids=get_posts(array('post_type'=>'attachment','post_status'=>'inherit','posts_per_page'=>max(1,min(100,$limit)),'fields'=>'ids','meta_query'=>array(array('key'=>'_metafans_community_upload_state','value'=>'staged'),array('key'=>'_metafans_community_upload_staged_at','value'=>$older_than,'compare'=>'<=','type'=>'NUMERIC')))); $deleted=0; foreach((array)$ids as $id){ if(wp_delete_attachment((int)$id,true))$deleted++; } return $deleted; }
+    public function mark_attached( int $attachment_id, int $actor_id, int $activity_id ): void {
+        if ( $attachment_id < 1 || $actor_id < 1 || $activity_id < 1 ) return;
+        $post=get_post($attachment_id);
+        $owner=(int)get_post_meta($attachment_id,'_metafans_community_upload_owner',true);
+        $state=(string)get_post_meta($attachment_id,'_metafans_community_upload_state',true);
+        if(!$post||'attachment'!==$post->post_type||(int)$post->post_author!==$actor_id||$owner!==$actor_id||'staged'!==$state)return;
+        update_post_meta($attachment_id,'_metafans_community_upload_state','attached');
+        update_post_meta($attachment_id,'_metafans_community_activity_id',$activity_id);
+        delete_post_meta($attachment_id,'_metafans_community_upload_staged_at');
+    }
+    public function cleanup_orphans( int $older_than, int $limit = 50 ): int {
+        $ids=get_posts(array(
+            'post_type'=>'attachment',
+            'post_status'=>'inherit',
+            'posts_per_page'=>max(1,min(100,$limit)),
+            'fields'=>'ids',
+            'no_found_rows'=>true,
+            'meta_query'=>array(
+                'relation'=>'AND',
+                array('key'=>'_metafans_community_upload_state','value'=>'staged'),
+                array('key'=>'_metafans_community_upload_staged_at','value'=>$older_than,'compare'=>'<=','type'=>'NUMERIC'),
+                array('key'=>'_metafans_community_activity_id','compare'=>'NOT EXISTS'),
+            ),
+        ));
+        $deleted=0;
+        foreach((array)$ids as $id){
+            $id=(int)$id;
+            if('staged'!==get_post_meta($id,'_metafans_community_upload_state',true))continue;
+            if((int)get_post_meta($id,'_metafans_community_activity_id',true)>0)continue;
+            if(wp_delete_attachment($id,true))$deleted++;
+        }
+        return $deleted;
+    }
 }

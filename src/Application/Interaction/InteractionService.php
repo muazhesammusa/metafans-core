@@ -6,6 +6,7 @@ use METAFANSCORE\Application\Activity\ActivityPrivacyService;
 use METAFANSCORE\Application\Contracts\ActivityGateway;
 use METAFANSCORE\Application\Contracts\NotificationGateway;
 use METAFANSCORE\Domain\Social\MutationResult;
+use METAFANSCORE\Domain\Social\ReactionSet;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -26,15 +27,7 @@ final class InteractionService {
 	}
 
 	private function base_reactions(): array {
-		$row = array( 'count' => 0, 'users' => array() );
-		return array(
-			'like'  => $row,
-			'love'  => $row,
-			'haha'  => $row,
-			'wow'   => $row,
-			'angry' => $row,
-			'sad'   => $row,
-		);
+		return ReactionSet::empty_set();
 	}
 
 	private function index_by_id( array $rows, string $id ) {
@@ -58,8 +51,7 @@ final class InteractionService {
 	}
 
 	private function valid_reaction_type( string $type, bool $allow_decrement = false ): bool {
-		$allowed = array( 'like', 'love', 'haha', 'wow', 'angry', 'sad' );
-		return in_array( $type, $allowed, true ) || ( $allow_decrement && 'decrement' === $type );
+		return in_array( $type, ReactionSet::TYPES, true ) || ( $allow_decrement && 'decrement' === $type );
 	}
 
 	public function add_comment( int $actor_id, int $activity_id, string $content, array $profile ): MutationResult {
@@ -181,31 +173,7 @@ final class InteractionService {
 	}
 
 	private function toggle_reaction_set( array $reactions, int $actor_id, string $type, bool $same_is_noop = false ): array {
-		$current = null;
-		foreach ( $reactions as $key => $row ) {
-			$users = array_map( 'absint', (array) ( $row['users'] ?? array() ) );
-			if ( in_array( $actor_id, $users, true ) ) {
-				$current = $key;
-				break;
-			}
-		}
-		if ( $same_is_noop && $current === $type ) {
-			return $reactions;
-		}
-		if ( $current ) {
-			$users                            = array_values( array_diff( array_map( 'absint', (array) ( $reactions[ $current ]['users'] ?? array() ) ), array( $actor_id ) ) );
-			$reactions[ $current ]['users']   = $users;
-			$reactions[ $current ]['count']   = count( $users );
-		}
-		if ( 'decrement' !== $type && $current !== $type ) {
-			if ( ! isset( $reactions[ $type ] ) ) {
-				$reactions[ $type ] = array( 'count' => 0, 'users' => array() );
-			}
-			$users                          = array_values( array_unique( array_merge( array_map( 'absint', (array) $reactions[ $type ]['users'] ), array( $actor_id ) ) ) );
-			$reactions[ $type ]['users']   = $users;
-			$reactions[ $type ]['count']   = count( $users );
-		}
-		return $reactions;
+		return ReactionSet::toggle( $reactions, $actor_id, $type, $same_is_noop );
 	}
 
 	public function react_activity( int $actor_id, int $activity_id, string $type ): MutationResult {
@@ -333,8 +301,8 @@ final class InteractionService {
 				}
 				$rows[ $index ]['reactions'] = is_array( $rows[ $index ]['reactions'] ?? null ) ? $rows[ $index ]['reactions'] : array();
 				$key                          = 'like' === $type ? 'likes' : $type;
-				$row                          = $rows[ $index ]['reactions'][ $key ] ?? array( 'count' => 0, 'people_reacted' => array() );
-				$people                       = array_values( array_unique( array_map( 'absint', (array) ( $row['people_reacted'] ?? array() ) ) ) );
+				$row                          = ReactionSet::normalize_media_row( (array) ( $rows[ $index ]['reactions'][ $key ] ?? array() ) );
+				$people                       = $row['people_reacted'];
 				if ( in_array( $actor_id, $people, true ) ) {
 					$people = array_values( array_diff( $people, array( $actor_id ) ) );
 					$active = false;

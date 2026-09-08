@@ -30,6 +30,12 @@ class MetafansElementorBBPressNewPost extends \Elementor\Widget_base
 	public function get_keywords() {
 		return [ 'topic' ];
 	}
+	public function get_script_depends() {
+		return [ 'rich-text-quill' ];
+	}
+	public function get_style_depends() {
+		return [ 'rich-text-quill-css' ];
+	}
 	protected function register_controls(){
 		$this->start_controls_section(
 			'th_new_post_section',
@@ -109,7 +115,8 @@ class MetafansElementorBBPressNewPost extends \Elementor\Widget_base
 		$forum_args = array(
 			'post_type' => 'forum',
 			'post_status' => 'publish',
-			'posts_per_page' => -1
+			'posts_per_page' => -1,
+			'no_found_rows'   => true,
 		);
 		$forum = new \WP_Query($forum_args);
 		?>
@@ -137,6 +144,7 @@ class MetafansElementorBBPressNewPost extends \Elementor\Widget_base
 								}	
 							?>
 						</select>
+						<?php wp_reset_postdata(); ?>
 					</div>
 					<div class="form-group">
 						<label for="thbbpressposttags"><?php esc_html_e( 'Tags (optional)', WP_MF_CORE_SLUG ); ?></label>

@@ -14,6 +14,7 @@ require_once dirname( __DIR__, 2 ) . '/src/Application/Contracts/MediaGateway.ph
 require_once dirname( __DIR__, 2 ) . '/src/Application/Contracts/FollowGateway.php';
 require_once dirname( __DIR__, 2 ) . '/src/Application/Contracts/NotificationGateway.php';
 require_once dirname( __DIR__, 2 ) . '/src/Domain/Social/MutationResult.php';
+require_once dirname( __DIR__, 2 ) . '/src/Domain/Social/ReactionSet.php';
 require_once dirname( __DIR__, 2 ) . '/src/Application/Activity/ActivityPrivacyService.php';
 require_once dirname( __DIR__, 2 ) . '/src/Application/Media/MediaService.php';
 require_once dirname( __DIR__, 2 ) . '/src/Application/Follow/FollowService.php';
@@ -67,6 +68,14 @@ $r=$social->react_comment(20,100,$comment_id,'like'); p5_assert($r->is_success()
 $r=$social->delete_comment(30,100,$comment_id,null); p5_assert(!$r->is_success() && $r->http_status()===403,'non-owner cannot delete top-level comment');
 $r=$social->delete_comment(10,100,$comment_id,null); p5_assert($r->is_success() && empty($activities->meta[100]['tophive_activity_comments']),'activity owner can moderate comment');
 
+$activities->meta[100]['tophive_activity_reactions']=array(
+    'like'=>array('count'=>99,'users'=>array(20,20,0)),
+    'love'=>array('count'=>4,'users'=>array(20,30,30)),
+    'unknown'=>array('count'=>1,'users'=>array(40)),
+);
+$r=$social->react_activity(30,100,'wow');
+p5_assert($r->is_success() && $activities->meta[100]['tophive_activity_reactions']['like']['count']===1 && $activities->meta[100]['tophive_activity_reactions']['love']['count']===0 && $activities->meta[100]['tophive_activity_reactions']['wow']['users']===array(30),'corrupt reaction membership and counts normalize before mutation');
+$activities->meta[100]['tophive_activity_reactions']=array();
 $r=$social->react_activity(20,100,'like'); p5_assert($r->is_success() && $activities->meta[100]['tophive_activity_reactions']['like']['count']===1,'activity reaction add persists');
 $r=$social->react_activity(20,100,'like'); p5_assert($r->is_success() && $activities->meta[100]['tophive_activity_reactions']['like']['count']===1,'same activity reaction remains a no-op for legacy contract');
 $r=$social->react_activity(20,100,'decrement'); p5_assert($r->is_success() && $activities->meta[100]['tophive_activity_reactions']['like']['count']===0,'activity decrement removes current reaction');
@@ -84,9 +93,12 @@ $r=$social->add_media_comment(20,100,'MEDIA1','   '); p5_assert(!$r->is_success(
 $r=$social->react_media(20,100,'MEDIA1','invalid'); p5_assert(!$r->is_success() && $r->http_status()===400,'unknown media reaction is rejected');
 
 $fg=new P5FollowGateway(); $follow=new FollowService($fg);
+$fg->followers[20]=array(10,10,0); $fg->following[10]=array(); $info=$follow->info(10,20); p5_assert(!$info['is_following'] && !$info['consistent'],'one-sided legacy follow state is not reported as a valid relation');
+$fg->followers[20]=array();
 $r=$follow->toggle(10,20); p5_assert($r->is_success() && $r->data()['is_following'] && $fg->followers[20]===array(10) && $fg->following[10]===array(20),'follow creates synchronized unique relation');
 p5_assert($fg->lock_calls===1,'follow mutation runs inside relationship lock');
 $r=$follow->toggle(10,20); p5_assert($r->is_success() && !$r->data()['is_following'] && $fg->followers[20]===array() && $fg->following[10]===array(),'follow toggle removes both directions');
+$fg->followers[20]=array(10); $fg->following[10]=array(); $r=$follow->toggle(10,20); p5_assert($r->is_success() && !$r->data()['is_following'] && $r->data()['repaired'] && $fg->followers[20]===array() && $fg->following[10]===array(),'follow toggle repairs one-sided legacy relation');
 p5_assert(!$follow->toggle(10,10)->is_success(),'self-follow is rejected');
 $fg->lock_available=false; $r=$follow->toggle(10,20); p5_assert(!$r->is_success() && $r->http_status()===409,'follow fails closed when relationship lock is busy'); $fg->lock_available=true;
 $fg->followers[20]=array(10); $fg->following[10]=array(); $fg->fail_following=true; $r=$follow->toggle(10,20); p5_assert(!$r->is_success() && $fg->followers[20]===array(10),'follow partial write rolls back first direction');

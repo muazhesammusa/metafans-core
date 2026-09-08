@@ -37,6 +37,7 @@ use METAFANSCORE\widgets\elementor\MetafansElementorBuddyPressGroups;
 use METAFANSCORE\widgets\elementor\MetafansElementorBBPressNewPost;
 use METAFANSCORE\widgets\elementor\MetafansElementorMemberCount;
 use METAFANSCORE\widgets\metafanswidgets\WidgetHelper;
+use METAFANSCORE\Support\DomainFoundation;
 
 class MetafansCore
 {
@@ -65,6 +66,7 @@ class MetafansCore
 	}
 	public static function init(){
 		self::constants();
+		DomainFoundation::boot();
 		add_action( 'wp_enqueue_scripts', array(self::getInstance(), 'frontendassets'));
 		add_filter('user_contactmethods', array(self::getInstance(), 'tophiveCutsomContacts'));
 		add_action( 'show_user_profile', array( self::getInstance(), 'tophive_profile_designation') );
@@ -299,10 +301,16 @@ function autoload( $class = '' ) {
 
 	$relative = str_replace( __NAMESPACE__ . '\\', '', $class );
 	$relative = str_replace( '\\', '/', $relative );
-	$file     = __DIR__ . '/' . $relative . '.php';
+	$files = array(
+		__DIR__ . '/' . $relative . '.php',
+		__DIR__ . '/src/' . $relative . '.php',
+	);
 
-	if ( is_readable( $file ) ) {
-		require_once $file;
+	foreach ( $files as $file ) {
+		if ( is_readable( $file ) ) {
+			require_once $file;
+			return;
+		}
 	}
 }
 remove_action( 'shutdown', 'wp_ob_end_flush_all', 1 );

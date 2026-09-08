@@ -18,19 +18,28 @@ class MetafansBPProfileMedia extends WP_Widget
     $html .= '<div>';
     $html .= '<h2 class="widget-title">' . $instance['title'] . '</h2>';
 
-    global $wpdb;
-    $user_id = bp_displayed_user_id();
+    $user_id = absint( bp_displayed_user_id() );
     $all_images = [];
     $media_html = '';
-    $activities = $wpdb->get_results("SELECT id from {$wpdb->base_prefix}bp_activity WHERE user_id={$user_id} and type='activity_update' ORDER BY id DESC", ARRAY_N);
+    $activities = function_exists( 'bp_activity_get' )
+      ? bp_activity_get( array( 'user_id' => $user_id, 'action' => 'activity_update', 'per_page' => 50, 'show_hidden' => false ) )
+      : array();
+    $activities = isset( $activities['activities'] ) && is_array( $activities['activities'] ) ? $activities['activities'] : array();
 
     if (!empty($activities)) {
-      foreach ($activities as $key => $value) {
-        $images = bp_activity_get_meta($value[0], 'activity_media', false);
+      foreach ($activities as $activity) {
+        $activity_id = isset( $activity->id ) ? absint( $activity->id ) : 0;
+        $can_view = $activity_id && class_exists( 'MetaFans_Security' )
+          ? MetaFans_Security::can_view_activity( $activity_id )
+          : ( $activity_id && ( ! function_exists( 'bp_activity_user_can_read' ) || bp_activity_user_can_read( $activity, get_current_user_id() ) ) );
+        if ( ! $can_view ) {
+          continue;
+        }
+        $images = bp_activity_get_meta($activity_id, 'activity_media', false);
         if (!empty($images[0])) {
           $newImages = $images[0];
           foreach ($newImages as &$image) {
-            $image['activity_id'] = $value[0];
+            $image['activity_id'] = $activity_id;
           }
           array_push($all_images, ...$newImages);
         }

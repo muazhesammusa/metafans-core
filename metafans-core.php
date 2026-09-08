@@ -86,7 +86,6 @@ class MetafansCore
 		add_action( 'wp_ajax_nopriv_th_advanced_search', array(MetafansElementorBase::getInstance(), 'tophiveAdvancedSearch') );
 
 		add_action( 'wp_ajax_th_post_topic', array(MetafansElementorBase::getInstance(), 'tophivePostTopicSubmit') );
-		add_action( 'wp_ajax_nopriv_th_post_topic', array(MetafansElementorBase::getInstance(), 'tophivePostTopicSubmit') );
 		
 		add_action('wp_ajax_mailchimpsubscribe', array(WidgetHelper::getInstance(), 'TH_ajax_subscribe'));
 		add_action('wp_ajax_nopriv_mailchimpsubscribe', array(WidgetHelper::getInstance(), 'TH_ajax_subscribe'));
@@ -128,7 +127,7 @@ class MetafansCore
 	public function tophive_save_profile_designation($user_id){
 		$saved = false;
 		if ( current_user_can( 'edit_user', $user_id ) ) {
-		    update_user_meta( $user_id, 'designation', $_POST['designation'] );
+		    update_user_meta( $user_id, 'designation', isset( $_POST['designation'] ) ? sanitize_text_field( wp_unslash( $_POST['designation'] ) ) : '' );
 		    $saved = true;
 		}
 		return true;
@@ -176,15 +175,20 @@ class MetafansCore
 		wp_enqueue_style( 'th-wp-widget-styles', WP_MF_CORE_URL . 'widgets/wordpress/assets/styles.css' );
 		wp_enqueue_style( 'th-elementor-css', WP_MF_CORE_URL . 'widgets/elementor/assets/style.css' );
 		wp_enqueue_style( 'th-widget-css', WP_MF_CORE_URL . 'widgets/metafanswidgets/assets/css/frontend.css' );
-		wp_localize_script('th-elementor-js', 'th_elem_ajax_obj', 
-			array( 'ajaxurl' => admin_url( 'admin-ajax.php' ) )
-		);
 		add_action( 'wp_ajax_course_grid_pull_cats', array( MetafansElementorBase::getInstance(), 'AjaxCourseRequest' ) );
 		add_action( 'wp_ajax_nopriv_course_grid_pull_cats', array( MetafansElementorBase::getInstance(), 'AjaxCourseRequest' ) );
 		wp_enqueue_script( 'rich-text-quill', WP_MF_CORE_URL . 'widgets/elementor/assets/quill.min.js', array(), '4.0.6' );
 
 		wp_enqueue_style( 'rich-text-quill-css', WP_MF_CORE_URL . 'widgets/elementor/assets/quill.snow.css' );
-		wp_enqueue_script('th-elementor-js',WP_MF_CORE_URL . 'widgets/elementor/assets/script.js',array('jquery'));
+		wp_enqueue_script( 'th-elementor-js', WP_MF_CORE_URL . 'widgets/elementor/assets/script.js', array( 'jquery' ) );
+		wp_localize_script(
+			'th-elementor-js',
+			'th_elem_ajax_obj',
+			array(
+				'ajaxurl' => admin_url( 'admin-ajax.php' ),
+				'nonce'   => wp_create_nonce( 'metafans_core_topic' ),
+			)
+		);
 	}
 	public static function widgetRegistrar(){
 		require_once('widgets/metafanswidgets/MetafansRecentPostsWidget.php');

@@ -274,6 +274,7 @@ jQuery(document).ready(function(jQuery) {
 			type    : 'post',
 			data    : {
 				action : 'th_post_topic',
+				nonce : th_elem_ajax_obj.nonce,
 				data : data,
 			},
 			beforeSend: function(){

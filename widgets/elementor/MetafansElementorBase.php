@@ -678,73 +678,76 @@ class MetafansElementorBase
     	return $price_html;
 	}
 	public function tophivePostTopicSubmit(){
-		if( !class_exists('bbPress') ){
-			return;
+		if ( ! class_exists( 'bbPress' ) || ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'Authentication required.', WP_MF_CORE_SLUG ) ), 401 );
 		}
-		$post_info = isset($_REQUEST['data']) && is_array($_REQUEST['data']) ? $_REQUEST['data'] : array();
 
-		$post_data = array();
+		check_ajax_referer( 'metafans_core_topic', 'nonce' );
 
-		$post_data['post_title'] = isset($post_info[0]['value']) ? sanitize_text_field($post_info[0]['value']) : '';
-		$post_data['post_content'] = isset($post_info[3]['value']) ? wp_kses_post($post_info[3]['value']) : '';
-		$post_data['post_parent'] = isset($post_info[1]['value']) ? absint($post_info[1]['value']) : '';
-		$post_data['comment_status'] = 'open';
+		if ( ! current_user_can( 'publish_topics' ) ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'You are not allowed to create topics.', WP_MF_CORE_SLUG ) ), 403 );
+		}
 
-		$post_id = 0;
+		$post_info = isset( $_POST['data'] ) && is_array( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : array();
+		$post_data = array(
+			'post_title'     => isset( $post_info[0]['value'] ) ? sanitize_text_field( $post_info[0]['value'] ) : '',
+			'post_content'   => isset( $post_info[3]['value'] ) ? wp_kses_post( $post_info[3]['value'] ) : '',
+			'post_parent'    => isset( $post_info[1]['value'] ) ? absint( $post_info[1]['value'] ) : 0,
+			'post_author'    => get_current_user_id(),
+			'comment_status' => 'open',
+		);
 
-		if( empty($post_data['post_title']) ){
-			$res = array(
-				'post_id' => null,
-				'status' => esc_html__( 'failed', WP_MF_CORE_SLUG ),
-				'msg' => esc_html__( 'Title is empty', WP_MF_CORE_SLUG ),
-			);
-		}elseif( empty(strip_tags($post_data['post_content'])) ){
-			$res = array(
-				'post_id' => null,
-				'status' => esc_html__( 'failed', WP_MF_CORE_SLUG ),
-				'msg' => esc_html__( 'Topic content is empty', WP_MF_CORE_SLUG ),
-			);
-		}elseif( empty($post_data['post_parent']) ){
-			$res = array(
-				'post_id' => null,
-				'status' => esc_html__( 'failed', WP_MF_CORE_SLUG ),
-				'msg' => esc_html_e( 'You need to select a forum', WP_MF_CORE_SLUG ),
-			);
-		}elseif( function_exists('bbp_insert_topic') ){
-			$post_id = bbp_insert_topic( $post_data );
-			if( $post_id ){
-				global $wpdb;
-				$table = $wpdb->base_prefix . 'bp_activity';
-
-				$action = '<a href="'. bp_core_get_user_domain( get_current_user_id() ) .'">'. get_the_author_meta( 'display_name', get_current_user_id() ) .'</a>' . esc_html__( ' started a new topic in forum ', 'metafans' ) . '<a href="'. get_the_permalink( $post_data['post_parent'] ) .'">'. get_the_title( $post_data['post_parent'] ) .'</a>';
-
-				$wpdb->insert(
-		 			$table,
-		 			array(
-		 				'user_id' 		=> get_current_user_id(),
-		 				'component' 	=> 'bbpress',
-		 				'type' 			=> 'activity_update',
-		 				'action' 		=> $action,
-		 				'content' 		=> $post_data['post_content'],
-		 				'primary_link' 	=> get_the_permalink( $post_id ),
-		 				'date_recorded' => current_time('mysql')
-		 				// 'privacy' => 'public'
-		 			),
-		 			array(
-		 				'%d', '%s', '%s', '%s', '%s', '%s', '%s'
-		 			)
-		 		);
-				$res = array(
-					'post_id' => $post_id,
-					'status' => esc_html__( 'success', WP_MF_CORE_SLUG ),
-					'msg' => esc_html__( 'Topic Created Successfully', WP_MF_CORE_SLUG ),
-					'redirect_url' => get_the_permalink($post_id),
-				);
-			}else{
-				$res = 0;
+		if ( '' === $post_data['post_title'] ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'Title is empty.', WP_MF_CORE_SLUG ) ), 400 );
+		}
+		if ( '' === trim( wp_strip_all_tags( $post_data['post_content'] ) ) ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'Topic content is empty.', WP_MF_CORE_SLUG ) ), 400 );
+		}
+		if ( ! $post_data['post_parent'] || 'forum' !== get_post_type( $post_data['post_parent'] ) ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'You need to select a valid forum.', WP_MF_CORE_SLUG ) ), 400 );
+		}
+		if ( function_exists( 'bbp_is_forum_closed' ) && bbp_is_forum_closed( $post_data['post_parent'] ) && ! current_user_can( 'moderate' ) ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'This forum is closed.', WP_MF_CORE_SLUG ) ), 403 );
+		}
+		if ( function_exists( 'bbp_get_forum_visibility' ) ) {
+			$visibility = bbp_get_forum_visibility( $post_data['post_parent'] );
+			if ( 'private' === $visibility && ! current_user_can( 'read_private_forums' ) ) {
+				wp_send_json_error( array( 'message' => esc_html__( 'You cannot access this forum.', WP_MF_CORE_SLUG ) ), 403 );
+			}
+			if ( 'hidden' === $visibility && ! current_user_can( 'read_hidden_forums' ) ) {
+				wp_send_json_error( array( 'message' => esc_html__( 'You cannot access this forum.', WP_MF_CORE_SLUG ) ), 403 );
 			}
 		}
-		wp_send_json( $res, 200 );
+
+		$post_id = function_exists( 'bbp_insert_topic' ) ? bbp_insert_topic( $post_data ) : 0;
+		if ( ! $post_id || is_wp_error( $post_id ) ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'Topic creation failed.', WP_MF_CORE_SLUG ) ), 500 );
+		}
+
+		if ( function_exists( 'bp_activity_add' ) ) {
+			$user_url  = function_exists( 'bp_core_get_user_domain' ) ? bp_core_get_user_domain( get_current_user_id() ) : get_author_posts_url( get_current_user_id() );
+			$forum_url = get_permalink( $post_data['post_parent'] );
+			$action    = sprintf(
+				'%1$s %2$s %3$s',
+				'<a href="' . esc_url( $user_url ) . '">' . esc_html( get_the_author_meta( 'display_name', get_current_user_id() ) ) . '</a>',
+				esc_html__( 'started a new topic in forum', WP_MF_CORE_SLUG ),
+				'<a href="' . esc_url( $forum_url ) . '">' . esc_html( get_the_title( $post_data['post_parent'] ) ) . '</a>'
+			);
+			bp_activity_add( array(
+				'user_id'      => get_current_user_id(),
+				'component'    => 'bbpress',
+				'type'         => 'activity_update',
+				'action'       => wp_kses_post( $action ),
+				'content'      => $post_data['post_content'],
+				'primary_link' => get_permalink( $post_id ),
+			) );
+		}
+
+		wp_send_json_success( array(
+			'post_id'      => $post_id,
+			'message'      => esc_html__( 'Topic created successfully.', WP_MF_CORE_SLUG ),
+			'redirect_url' => get_permalink( $post_id ),
+		) );
 	}
 }
 

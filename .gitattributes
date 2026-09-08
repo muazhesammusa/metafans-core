@@ -1,0 +1,3 @@
+# MetaFans Core legacy source contains CRLF files. Treat CR as part of the line ending
+# so git diff --check still catches real trailing whitespace without false positives.
+* whitespace=cr-at-eol

@@ -70,7 +70,7 @@ class MetafansElementorBuddyPressGroups extends \Elementor\Widget_base
 					    ?>
 					    <div class="item-media-wrap">
 						    <div class="item-cover-img">
-						    	<img src="<?php echo tophive_sanitize_filter($group_cover_image_url); ?>" alt="bp-gourp-cover">
+							<img src="<?php echo esc_url( $group_cover_image_url ); ?>" alt="bp-gourp-cover">
 						    </div>
 							<?php if ( ! bp_disable_group_avatar_uploads() ) : ?>
 								<div class="item-avatar">

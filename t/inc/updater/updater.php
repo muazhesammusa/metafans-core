@@ -44,7 +44,7 @@ class MetafansCoreCustomizer_Updater
         // add_action('wp_loaded', array($this, 'int_auto_update'), 10);
         $this->int_auto_update();
 
-        if( isset($_REQUEST['force-check'] ) ) {
+        if ( isset( $_REQUEST['force-check'] ) && current_user_can( 'update_plugins' ) ) {
             delete_transient( $this->updater->cache_key );
             delete_option( $this->updater->cache_key );
         }
@@ -214,6 +214,9 @@ class MetafansCoreCustomizer_Updater
 
     function ajax()
     {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'message' => esc_html__( 'Permission denied.', 'tophive-pro' ) ), 403 );
+        }
         if ( isset( $_REQUEST['tophive_action'] ) ) {
             check_ajax_referer($this->option_key, '_nonce');
             $key = sanitize_text_field($_REQUEST['license']);
@@ -262,7 +265,7 @@ class MetafansCoreCustomizer_Updater
     {
         $api_params['edd_action'] = $action;
         // Call the custom API.
-        $response = wp_remote_post($this->api_url, array('timeout' => 15, 'sslverify' => false, 'body' => $api_params));
+        $response = wp_remote_post($this->api_url, array('timeout' => 15, 'sslverify' => true, 'body' => $api_params));
         if (is_wp_error($response) && 200 !== wp_remote_retrieve_response_code($response)) {
             return false;
         }

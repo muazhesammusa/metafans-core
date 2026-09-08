@@ -265,19 +265,9 @@ class MetafansCoreCustomizer_Module_Hooks extends MetafansCoreCustomizer_Module_
 
 					$hook = '__custom' === $data['hook'] ? $data['custom_hook'] : $data['hook'];
 
-					/*
-					 * We must create new anonymous function because we need more priority settings for hook
-					 *
-					 * Check if current version support anonymous function
-					 * @see http://php.net/manual/en/functions.anonymous.php
-					 */
-					if ( version_compare( PHP_VERSION, '5.3.0', '>' ) ) {
-						$function = function() use ( $hook_id ) {
-							MetafansCoreCustomizer_Module_Hooks::do_action( $hook_id );
-						};
-					} else {
-						$function = create_function( '', "MetafansCoreCustomizer_Module_Hooks::do_action( $hook_id );" ); //phpcs:ignore
-					}
+					$function = function() use ( $hook_id ) {
+						MetafansCoreCustomizer_Module_Hooks::do_action( $hook_id );
+					};
 
 					add_action( $hook, $function, $data['priority'] );
 
@@ -350,11 +340,8 @@ class MetafansCoreCustomizer_Module_Hooks extends MetafansCoreCustomizer_Module_
 
 			if ( 'code' == $hooks[ $id ]['editor'] ) {
 				$content = do_shortcode( $hooks[ $id ]['code'] );
-				if ( $hooks[ $id ]['enable_php'] ) {
-					eval( "?>{$content}<?php " );
-				} else {
-					echo $content;
-				}
+				// MetaFans v6 no longer executes arbitrary PHP stored in the database.
+				echo wp_kses_post( $content );
 			} else {
 				if ( self::$elementor_activated && get_post_meta( $id, '_elementor_edit_mode', true ) == 'builder' ) {
 					self::render_elementor_item_css( $id );

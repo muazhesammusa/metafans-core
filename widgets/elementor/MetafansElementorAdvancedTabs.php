@@ -156,7 +156,6 @@ class MetafansElementorAdvancedTabs extends \Elementor\Widget_base
 			);
 		$this->end_controls_section();
 
-		$this->end_controls_section();
 			$this->start_controls_section(
 				'th_adv_tabs_main_style',
 				[

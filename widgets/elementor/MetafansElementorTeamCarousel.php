@@ -808,7 +808,6 @@
 			$this->end_controls_tabs();
 
 		$this->end_controls_section();
-		$this->end_controls_section();
 			$this->start_controls_section(
 				'th_team_carousel_section_style',
 				[

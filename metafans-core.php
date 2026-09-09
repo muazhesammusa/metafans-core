@@ -3,7 +3,7 @@
  * Plugin Name: Metafans Core | By Tophive
  * Plugin URI: https://tophivetheme.com/
  * Description: Metafans Wordpress theme core functionality
- * Version: 1.5
+ * Version: 6.0.0
  * Requires at least: 6.8
  * Requires PHP: 8.1
  * Author: Tophive
@@ -20,6 +20,7 @@ defined( 'ABSPATH' ) || exit;
 use METAFANSCORE\widgets\elementor\MetafansElementorBase;
 use METAFANSCORE\widgets\metafanswidgets\WidgetHelper;
 use METAFANSCORE\Support\DomainFoundation;
+use METAFANSCORE\Support\UpgradeCoordinator;
 use METAFANSCORE\Elementor\WidgetRegistry;
 
 class MetafansCore
@@ -29,7 +30,7 @@ class MetafansCore
 
 	public static function constants()
 	{
-		define( 'WP_MF_CORE_VERSION', '1.5' );
+		define( 'WP_MF_CORE_VERSION', '6.0.0' );
 		define( 'WP_MF_CORE_PREFIX' , 	'thcore');
 		define( 'WP_MF_CORE_SLUG' , 	'metafanscore');
 
@@ -49,6 +50,7 @@ class MetafansCore
 	}
 	public static function init(){
 		self::constants();
+		UpgradeCoordinator::boot();
 		DomainFoundation::boot();
 		add_action( 'wp_enqueue_scripts', array(self::getInstance(), 'frontendassets'));
 		add_filter('user_contactmethods', array(self::getInstance(), 'tophiveCutsomContacts'));

@@ -1,0 +1,20 @@
+<?php
+define( 'ABSPATH', __DIR__ . '/' );
+require_once dirname(__DIR__,2).'/src/Application/Upgrade/Migration.php';
+require_once dirname(__DIR__,2).'/src/Application/Upgrade/MigrationStepResult.php';
+require_once dirname(__DIR__,2).'/src/Application/Upgrade/MigrationStateStore.php';
+require_once dirname(__DIR__,2).'/src/Application/Upgrade/MigrationRunner.php';
+use METAFANSCORE\Application\Upgrade\Migration;
+use METAFANSCORE\Application\Upgrade\MigrationRunner;
+use METAFANSCORE\Application\Upgrade\MigrationStateStore;
+use METAFANSCORE\Application\Upgrade\MigrationStepResult;
+function p10_migration_assert($condition,string $message):void{if(!$condition){fwrite(STDERR,"FAIL {$message}\n");exit(1);}fwrite(STDOUT,"PASS {$message}\n");}
+final class P10MigrationStore implements MigrationStateStore{public array $state=array();public bool $locked=false;public int $clock=1000;public function load():array{return $this->state;}public function save(array $state):void{$this->state=$state;}public function acquire_lock():?string{if($this->locked)return null;$this->locked=true;return'lock';}public function release_lock(string $token):void{if('lock'===$token)$this->locked=false;}public function now():int{return ++$this->clock;}}
+final class P10ChunkedMigration implements Migration{public int $calls=0;public bool $fail_once=false;public bool $destructive=false;public function id():string{return'20260909_chunked';}public function target_version():string{return'6.0.0';}public function is_destructive():bool{return $this->destructive;}public function run(?string $cursor):MigrationStepResult{++$this->calls;if($this->fail_once){$this->fail_once=false;throw new RuntimeException('simulated failure');}$step=null===$cursor?0:(int)$cursor;return $step>=2?MigrationStepResult::complete():MigrationStepResult::continue_from((string)($step+1));}}
+$store=new P10MigrationStore();$migration=new P10ChunkedMigration();$runner=new MigrationRunner($store,array($migration));
+$result=$runner->run(1);p10_migration_assert('in_progress'===$result['result']&&'1'===$result['cursor'],'bounded migration persists progress cursor');p10_migration_assert(!$store->locked,'migration lock releases after bounded run');
+$result=$runner->run(1);p10_migration_assert('in_progress'===$result['result']&&'2'===$result['cursor'],'migration resumes from persisted cursor');$result=$runner->run(1);p10_migration_assert('complete'===$result['result']&&in_array($migration->id(),$result['completed'],true),'resumed migration completes and records immutable completion id');$calls=$migration->calls;$runner->run(5);p10_migration_assert($calls===$migration->calls,'completed migration is idempotently skipped on rerun');
+$store2=new P10MigrationStore();$migration2=new P10ChunkedMigration();$migration2->fail_once=true;$runner2=new MigrationRunner($store2,array($migration2));$result=$runner2->run(5);p10_migration_assert('failed'===$result['result']&&'20260909_chunked'===$result['failed']['migration'],'migration failure persists recoverable operator state');p10_migration_assert(!$store2->locked,'migration lock releases after failure');$result=$runner2->run(5);p10_migration_assert('complete'===$result['result'],'failed migration resumes safely on the next run');
+$store3=new P10MigrationStore();$migration3=new P10ChunkedMigration();$migration3->destructive=true;$runner3=new MigrationRunner($store3,array($migration3));$result=$runner3->run(5,false);p10_migration_assert('requires_manual'===$result['result']&&0===$migration3->calls,'automatic path refuses destructive migrations');$result=$runner3->run(5,true);p10_migration_assert('complete'===$result['result'],'operator can explicitly authorize destructive migration');
+$store4=new P10MigrationStore();$store4->locked=true;$runner4=new MigrationRunner($store4,array(new P10ChunkedMigration()));$result=$runner4->run(5);p10_migration_assert('locked'===$result['result'],'concurrent migration execution fails closed on lock contention');
+echo "PASS MetaFans Phase 10 migration runner contract\n";

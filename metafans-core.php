@@ -20,6 +20,7 @@ defined( 'ABSPATH' ) || exit;
 use METAFANSCORE\widgets\elementor\MetafansElementorBase;
 use METAFANSCORE\widgets\metafanswidgets\WidgetHelper;
 use METAFANSCORE\Support\DomainFoundation;
+use METAFANSCORE\Support\ProductAccessGate;
 use METAFANSCORE\Support\UpgradeCoordinator;
 use METAFANSCORE\Elementor\WidgetRegistry;
 
@@ -30,26 +31,41 @@ class MetafansCore
 
 	public static function constants()
 	{
-		define( 'WP_MF_CORE_VERSION', '6.0.0' );
-		define( 'WP_MF_CORE_PREFIX' , 	'thcore');
-		define( 'WP_MF_CORE_SLUG' , 	'metafanscore');
+		defined( 'WP_MF_CORE_VERSION' ) || define( 'WP_MF_CORE_VERSION', '6.0.0' );
+		defined( 'WP_MF_CORE_PREFIX' ) || define( 'WP_MF_CORE_PREFIX', 'thcore' );
+		defined( 'WP_MF_CORE_SLUG' ) || define( 'WP_MF_CORE_SLUG', 'metafanscore' );
 
 		// Need to add extra links on plugin activation
-		define( 'WP_MF_CORE_BASENAME', plugin_basename( __FILE__ ));
+		defined( 'WP_MF_CORE_BASENAME' ) || define( 'WP_MF_CORE_BASENAME', plugin_basename( __FILE__ ) );
 
-		define( 'WP_MF_CORE_ROOT', __FILE__);
-		define( 'WP_MF_CORE_ROOT_DIR', dirname(WP_MF_CORE_ROOT));
+		defined( 'WP_MF_CORE_ROOT' ) || define( 'WP_MF_CORE_ROOT', __FILE__ );
+		defined( 'WP_MF_CORE_ROOT_DIR' ) || define( 'WP_MF_CORE_ROOT_DIR', dirname( WP_MF_CORE_ROOT ) );
 
-		define( 'WP_MF_CORE_PATH', plugin_dir_path(WP_MF_CORE_ROOT));
-		define( 'WP_MF_CORE_URL', plugin_dir_url(WP_MF_CORE_ROOT));
+		defined( 'WP_MF_CORE_PATH' ) || define( 'WP_MF_CORE_PATH', plugin_dir_path( WP_MF_CORE_ROOT ) );
+		defined( 'WP_MF_CORE_URL' ) || define( 'WP_MF_CORE_URL', plugin_dir_url( WP_MF_CORE_ROOT ) );
 
-		define( 'WP_MF_CORE_JS_URL', 	trailingslashit(WP_MF_CORE_URL . 'js'));
-		define( 'WP_MF_CORE_CSS_URL', 	trailingslashit(WP_MF_CORE_URL . 'css'));
-		define( 'WP_MF_CORE_FONTS_URL', 	trailingslashit(WP_MF_CORE_URL . 'fonts'));
-		define( 'WP_MF_CORE_IMAGES_URL', trailingslashit(WP_MF_CORE_URL . 'images'));
+		defined( 'WP_MF_CORE_JS_URL' ) || define( 'WP_MF_CORE_JS_URL', trailingslashit( WP_MF_CORE_URL . 'js' ) );
+		defined( 'WP_MF_CORE_CSS_URL' ) || define( 'WP_MF_CORE_CSS_URL', trailingslashit( WP_MF_CORE_URL . 'css' ) );
+		defined( 'WP_MF_CORE_FONTS_URL' ) || define( 'WP_MF_CORE_FONTS_URL', trailingslashit( WP_MF_CORE_URL . 'fonts' ) );
+		defined( 'WP_MF_CORE_IMAGES_URL' ) || define( 'WP_MF_CORE_IMAGES_URL', trailingslashit( WP_MF_CORE_URL . 'images' ) );
 	}
+	public static function bootstrap() {
+		self::constants();
+		add_action( 'after_setup_theme', array( self::getInstance(), 'init' ), 30 );
+	}
+
 	public static function init(){
 		self::constants();
+
+		if ( ! ProductAccessGate::allows() ) {
+			do_action( 'metafans_core_runtime_locked' );
+			return;
+		}
+
+		require_once __DIR__ . '/MailChimp.php';
+		require_once __DIR__ . '/src/Legacy/CustomizerModuleRuntime.php';
+		remove_action( 'shutdown', 'wp_ob_end_flush_all', 1 );
+
 		UpgradeCoordinator::boot();
 		DomainFoundation::boot();
 		add_action( 'wp_enqueue_scripts', array(self::getInstance(), 'frontendassets'));
@@ -218,11 +234,8 @@ class MetafansCore
 spl_autoload_register(__NAMESPACE__ . '\\autoload');
 
 
-add_action( 'plugins_loaded', array( MetafansCore::getInstance(), 'init' ) );
+add_action( 'plugins_loaded', array( MetafansCore::getInstance(), 'bootstrap' ) );
 
-require_once __DIR__ . '/MailChimp.php';
-require_once __DIR__ . '/src/Legacy/CustomizerModuleRuntime.php';
-require_once __DIR__ . '/updater/theme-updater.php';
 
 function autoload( $class = '' ) {
 	if ( 0 !== strpos( $class, __NAMESPACE__ . '\\' ) ) {
@@ -243,4 +256,3 @@ function autoload( $class = '' ) {
 		}
 	}
 }
-remove_action( 'shutdown', 'wp_ob_end_flush_all', 1 );
